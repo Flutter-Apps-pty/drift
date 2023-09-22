@@ -106,13 +106,27 @@ class DriftCommunication {
   ///
   /// The [requestId] parameter can be used to set a fixed request id for the
   /// request.
-  Future<T> request<T>(Object? request, {int? requestId}) {
+  /// The [timeout] parameter specifies how long to wait for a response before
+  /// timing out.
+  Future<T> request<T>(Object? request, {int? requestId, Duration? timeout = const Duration(seconds: 30)}) {
     final id = requestId ?? newRequestId();
     final completer = Completer<T>();
 
     _pendingRequests[id] = _PendingRequest(completer, StackTrace.current);
 
     _send(Request(id, request));
+
+    if (timeout != null) {
+      completer.future.timeout(
+        timeout,
+        onTimeout: () {
+          _pendingRequests[id]?.completeWithError(TimeoutException('Request timed out after $timeout', timeout));
+          _pendingRequests.remove(id); // Remove the pending request
+          return completer.future;
+        },
+      );
+    }
+
     return completer.future;
   }
 
