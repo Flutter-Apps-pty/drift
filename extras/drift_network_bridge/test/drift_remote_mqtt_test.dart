@@ -6,7 +6,7 @@ import 'package:async/async.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/remote.dart';
 import 'package:drift/src/remote/protocol.dart';
-import 'package:drift_network_bridge/implementation/mqtt_database_gateway.dart';
+import 'package:drift_network_bridge/drift_network_bridge.dart';
 import 'package:drift_testcases/database/database.dart';
 import 'package:mockito/mockito.dart';
 import 'package:stream_channel/stream_channel.dart';
@@ -17,6 +17,37 @@ import '../../../drift/test/test_utils/database_vm.dart';
 import '../../../drift/test/test_utils/mocks.dart';
 void main() {
   preferLocalSqlite3();
+  test('recover from half connection', () async {
+    final gate = MqttDatabaseGateway('127.0.0.1',
+        'unit_device', 'drift/test_site',
+        allowRemoteShutdown: true);
+    await gate.serve(Database(testInMemoryDatabase()));
+    final client = gate.createConnection();
+    await client.connect();
+    await gate.isReady;
+
+    final clientConn = await connectToRemoteAndInitialize(
+        client.expectedToClose,
+        singleClientMode: true);
+
+    final db = Database(clientConn);
+    /// Force ensure open
+    final test = await db.users.select().get();
+    NetworkStreamChannel.ignoreClientMessage = true;
+    try {
+      await db.users.select().get();
+    }
+    catch (e) {
+      print(e);
+    }
+    NetworkStreamChannel.ignoreClientMessage = false;
+    final data = await db.users.select().get();
+    expect(data, isNotEmpty);
+    await db.close();
+
+    expect(gate.done, completes);
+  });
+
   test('closes channel in shutdown mqtt ', () async {
     final gate = MqttDatabaseGateway('test.mosquitto.org',
         'unit_device', 'drift/test_site',
