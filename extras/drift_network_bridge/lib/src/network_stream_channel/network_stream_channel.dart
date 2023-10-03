@@ -102,8 +102,9 @@ class NetworkStreamChannel extends StreamChannelMixin<Object?> {
     _client.channelRequestStrategy(s);
   }
 
-  Future<void> connect() async {
-    return _client.connect();
+  Future<NetworkStreamChannel> connect() async {
+    await _client.connect();
+    return this;
   }
 
   void handleDriftMessage(String payload) {
