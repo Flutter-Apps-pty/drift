@@ -32,6 +32,7 @@ const _protocol = DriftProtocol();
 //           _controller.addError(payload['error'], payload['stackTrace']);
 //         }
 
+
 abstract class NetworkClient {
   late final NetworkStreamChannel streamChannel;
 
@@ -58,6 +59,8 @@ abstract class NetworkClient {
   void disconnect();
 
   FutureOr<bool> reconnect();
+
+  bool get isHost => streamChannel.isHost;
 }
 
 class NetworkStreamChannel extends StreamChannelMixin<Object?> {
@@ -68,6 +71,10 @@ class NetworkStreamChannel extends StreamChannelMixin<Object?> {
   StreamController<Object?> _controller;
   late StreamSinkWrapper _sink;
   void Function(NetworkClient client)? onConnected;
+  bool get isHost => !allowSinkErrors;
+
+  @visibleForTesting
+  static bool ignoreClientMessage = false;
 
   NetworkStreamChannel(this._client,
       {this.allowSinkErrors = true,
@@ -104,6 +111,10 @@ class NetworkStreamChannel extends StreamChannelMixin<Object?> {
     if (decoded is List && decoded.last == 's') {
       decoded = _protocol.deserialize(decoded);
     }
+    if(ignoreClientMessage && isHost){
+      return;
+    }
+
     _controller.hasListener
         ? _controller.add(decoded)
         : kDebugPrint('No listener');
@@ -120,8 +131,8 @@ class NetworkStreamChannel extends StreamChannelMixin<Object?> {
 
   void handleError(String error) {
     if (!allowSinkErrors) {
-      final payload = jsonDecode(error);
-      _controller.addError(payload['error'], payload['stackTrace']);
+      final Map<String, dynamic> payload = jsonDecode(error);
+      _controller.addError(payload['error'], payload.containsKey('stackTrace')?StackTrace.fromString(payload['stackTrace']):null);
       return;
     }
   }
@@ -152,8 +163,6 @@ class StreamSinkWrapper implements StreamSink<Object?> {
 
   StreamSinkWrapper(this._channel, {this.allowSinkErrors = true});
 
-  static int counter = 0;
-
   @override
   void add(Object? event) async {
     if (event is Message) {
@@ -167,6 +176,7 @@ class StreamSinkWrapper implements StreamSink<Object?> {
         throw Exception('Could not reconnect');
       }
     }
+
     _client.add(jsonEncode(event));
   }
 
