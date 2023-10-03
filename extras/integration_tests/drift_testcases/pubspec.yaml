@@ -16,3 +16,7 @@ dev_dependencies:
   drift_dev: ^2.0.0
   json_serializable: ^6.2.0
   lints: ^2.0.0
+
+dependency_overrides:
+  drift:
+    path: ../../drift
