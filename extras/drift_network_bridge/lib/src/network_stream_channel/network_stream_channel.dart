@@ -128,7 +128,7 @@ class NetworkStreamChannel extends StreamChannelMixin<Object?> {
       _sink.close();
       return;
     }
-    _closeCompleter.complete();
+    closeCompleted();
   }
 
   void handleError(String error) {
