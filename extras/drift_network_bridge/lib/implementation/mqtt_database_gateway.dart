@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:drift/remote.dart';
 import 'package:drift_network_bridge/dev/logging.dart';
 import 'package:drift_network_bridge/src/network_stream_channel/database_gateway.dart';
 import 'package:drift_network_bridge/src/network_stream_channel/network_stream_channel.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
+import '../src/remote.dart';
 import 'mqtt_stream_channel.dart';
 
 class MqttDatabaseGateway extends DatabaseGateway {
@@ -17,10 +17,10 @@ class MqttDatabaseGateway extends DatabaseGateway {
   SubscriptionTopic get sClientRequests =>
       SubscriptionTopic('$_topic/+/request');
 
-  Future<DatabaseConnection> createRemoteConnection() async {
+  Future<DatabaseConnection> createNetworkConnection() async {
     final remoteConnection = createConnection();
     await remoteConnection.connect();
-    return await connectToRemoteAndInitialize(remoteConnection);
+    return await connectToNetworkAndInitialize(remoteConnection);
   }
 
   MqttDatabaseGateway(broker, String clientId, this._topic,

@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:stream_channel/stream_channel.dart';
 
 // ignore: implementation_imports
-import 'package:drift/src/remote/protocol.dart';
 import 'package:meta/meta.dart';
 
 import '../../dev/logging.dart';
+// ignore: implementation_imports
+import 'package:drift/src/remote/protocol.dart';
 
 const _protocol = DriftProtocol();
 
