@@ -62,11 +62,16 @@ class ElementSerializer {
           'virtual': _serializeVirtualTableData(element.virtualTableData!),
         'write_default_constraints': element.writeDefaultConstraints,
         'custom_constraints': element.overrideTableConstraints,
+        'attached_indices': element.attachedIndices,
       };
     } else if (element is DriftIndex) {
       additionalInformation = {
         'type': 'index',
         'sql': element.createStmt,
+        'columns': [
+          for (final column in element.indexedColumns) column.nameInSql,
+        ],
+        'unique': element.unique,
       };
     } else if (element is DefinedSqlQuery) {
       final existingDartType = element.existingDartType;
@@ -189,9 +194,23 @@ class ElementSerializer {
     };
   }
 
+  Map<String, Object?> _serializeColumnType(ColumnType type) {
+    final custom = type.custom;
+
+    return {
+      if (custom != null)
+        'custom': {
+          'dart': _serializeType(custom.dartType),
+          'expression': custom.expression.toJson(),
+        }
+      else
+        'builtin': type.builtin.name,
+    };
+  }
+
   Map<String, Object?> _serializeColumn(DriftColumn column) {
     return {
-      'sqlType': column.sqlType.name,
+      'sqlType': _serializeColumnType(column.sqlType),
       'nullable': column.nullable,
       'nameInSql': column.nameInSql,
       'nameInDart': column.nameInDart,
@@ -301,7 +320,7 @@ class ElementSerializer {
       'expression': converter.expression.toJson(),
       'dart_type': _serializeType(converter.dartType),
       'json_type': _serializeType(converter.jsonType),
-      'sql_type': converter.sqlType.name,
+      'sql_type': _serializeColumnType(converter.sqlType),
       'dart_type_is_nullable': converter.dartTypeIsNullable,
       'sql_type_is_nullable': converter.sqlTypeIsNullable,
       'is_drift_enum_converter': converter.isDriftEnumTypeConverter,
@@ -423,6 +442,7 @@ class ElementDeserializer {
       state
         ..result = result
         ..isUpToDate = true;
+
       return result;
     } catch (e, s) {
       if (e is CouldNotDeserializeException) rethrow;
@@ -512,6 +532,7 @@ class ElementDeserializer {
           overrideTableConstraints: json['custom_constraints'] != null
               ? (json['custom_constraints'] as List).cast()
               : const [],
+          attachedIndices: (json['attached_indices'] as List).cast(),
         );
 
         for (final column in columns) {
@@ -531,11 +552,18 @@ class ElementDeserializer {
 
         return table;
       case 'index':
+        final onTable = references.whereType<DriftTable>().firstOrNull;
+
         return DriftIndex(
           id,
           declaration,
-          table: references.whereType<DriftTable>().firstOrNull,
-          createStmt: json['sql'] as String,
+          table: onTable,
+          createStmt: json['sql'] as String?,
+          indexedColumns: [
+            for (final entry in json['columns'] as List)
+              onTable!.columnBySqlName[entry as String]!,
+          ],
+          unique: json['unique'] as bool,
         );
       case 'query':
         final types = <String, DartType>{};
@@ -695,11 +723,24 @@ class ElementDeserializer {
     }
   }
 
+  Future<ColumnType> _readColumnType(Map json, Uri definition) async {
+    if (json.containsKey('custom')) {
+      return ColumnType.custom(CustomColumnType(
+        AnnotatedDartCode.fromJson(json['expression'] as Map),
+        await _readDartType(definition, json['dart'] as int),
+      ));
+    } else {
+      return ColumnType.drift(
+          DriftSqlType.values.byName(json['builtin'] as String));
+    }
+  }
+
   Future<DriftColumn> _readColumn(Map json, DriftElementId ownTable) async {
     final rawConverter = json['typeConverter'] as Map?;
 
     return DriftColumn(
-      sqlType: DriftSqlType.values.byName(json['sqlType'] as String),
+      sqlType:
+          await _readColumnType(json['sqlType'] as Map, ownTable.libraryUri),
       nullable: json['nullable'] as bool,
       nameInSql: json['nameInSql'] as String,
       nameInDart: json['nameInDart'] as String,
@@ -738,7 +779,7 @@ class ElementDeserializer {
       jsonType: json['json_type'] != null
           ? await _readDartType(definition, json['json_type'] as int)
           : null,
-      sqlType: DriftSqlType.values.byName(json['sql_type'] as String),
+      sqlType: await _readColumnType(json['sql_type'] as Map, definition),
       dartTypeIsNullable: json['dart_type_is_nullable'] as bool,
       sqlTypeIsNullable: json['sql_type_is_nullable'] as bool,
       isDriftEnumTypeConverter: json['is_drift_enum_converter'] as bool,

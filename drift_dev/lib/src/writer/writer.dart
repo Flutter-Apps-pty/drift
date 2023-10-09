@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart';
+import 'package:path/path.dart' show url;
 import 'package:recase/recase.dart';
 import 'package:sqlparser/sqlparser.dart' as sql;
-import 'package:path/path.dart' show url;
 
-import '../analysis/results/results.dart';
 import '../analysis/options.dart';
+import '../analysis/results/results.dart';
 import 'import_manager.dart';
 import 'queries/sql_writer.dart';
 
@@ -134,7 +134,16 @@ abstract class _NodeOrWriter {
       {bool makeNullable = false}) {
     // Write something like `TypeConverter<MyFancyObject, String>`
     return AnnotatedDartCode.build((b) {
-      var sqlDartType = dartTypeNames[converter.sqlType]!;
+      AnnotatedDartCode sqlDartType;
+
+      if (converter.sqlType.isCustom) {
+        sqlDartType =
+            AnnotatedDartCode.type(converter.sqlType.custom!.dartType);
+      } else {
+        sqlDartType =
+            AnnotatedDartCode([dartTypeNames[converter.sqlType.builtin]!]);
+      }
+
       final className = converter.alsoAppliesToJsonConversion
           ? 'JsonTypeConverter2'
           : 'TypeConverter';
@@ -145,7 +154,7 @@ abstract class _NodeOrWriter {
         ..addDartType(converter.dartType)
         ..questionMarkIfNullable(makeNullable)
         ..addText(',')
-        ..addTopLevel(sqlDartType)
+        ..addCode(sqlDartType)
         ..questionMarkIfNullable(makeNullable || converter.sqlTypeIsNullable);
 
       if (converter.alsoAppliesToJsonConversion) {
@@ -169,7 +178,8 @@ abstract class _NodeOrWriter {
   /// This is the same as [dartType] but without custom types.
   AnnotatedDartCode variableTypeCode(HasType type, {bool? nullable}) {
     if (type.isArray) {
-      final inner = innerColumnType(type, nullable: nullable ?? type.nullable);
+      final inner =
+          innerColumnType(type.sqlType, nullable: nullable ?? type.nullable);
       return AnnotatedDartCode([
         DartTopLevelSymbol.list,
         '<',
@@ -177,7 +187,7 @@ abstract class _NodeOrWriter {
         '>',
       ]);
     } else {
-      return innerColumnType(type, nullable: nullable ?? type.nullable);
+      return innerColumnType(type.sqlType, nullable: nullable ?? type.nullable);
     }
   }
 
@@ -185,11 +195,20 @@ abstract class _NodeOrWriter {
   /// [nullable] parameter.
   ///
   /// This type does not respect type converters or arrays.
-  AnnotatedDartCode innerColumnType(HasType type, {bool nullable = false}) {
-    return AnnotatedDartCode([
-      dartTypeNames[type.sqlType],
-      if (nullable) '?',
-    ]);
+  AnnotatedDartCode innerColumnType(ColumnType type, {bool nullable = false}) {
+    return AnnotatedDartCode.build((b) {
+      final custom = type.custom;
+
+      if (custom != null) {
+        b.addDartType(custom.dartType);
+      } else {
+        b.addTopLevel(dartTypeNames[type.builtin]!);
+      }
+
+      if (nullable) {
+        b.addText('?');
+      }
+    });
   }
 
   String refUri(Uri definition, String element) {
@@ -298,6 +317,10 @@ class Scope extends _Node {
   /// This can be used to generated methods which must have a unique name-
   int counter = 0;
 
+  /// The set of names already used in this scope. Used by methods like
+  /// [getNonConflictingName] to prevent name collisions.
+  final Set<String> _usedNames = {};
+
   Scope({required Scope? parent, Writer? writer})
       : writer = writer ?? parent!.writer,
         super(parent);
@@ -324,6 +347,28 @@ class Scope extends _Node {
     final child = TextEmitter(this);
     _children.add(child);
     return child;
+  }
+
+  /// Reserve a collection of names in this scope. See [getNonConflictingName]
+  /// for more information.
+  void reserveNames(Iterable<String> names) {
+    _usedNames.addAll(names);
+  }
+
+  /// Returns a variation of [name] that does not conflict with any names
+  /// already in use in this [Scope].
+  ///
+  /// If [name] does not conflict with any existing names then it is returned
+  /// unmodified. If a conflict is detected then [name] is repeatedly passed to
+  /// [modify] until the result no longer conflicts. Each result returned from
+  /// this method is recorded in an internal set, so subsequent calls with the
+  /// same name will produce a different, non-conflicting result.
+  String getNonConflictingName(String name, String Function(String) modify) {
+    while (_usedNames.contains(name)) {
+      name = modify(name);
+    }
+    _usedNames.add(name);
+    return name;
   }
 }
 

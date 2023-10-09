@@ -40,7 +40,7 @@ CREATE TRIGGER delete_empty_groups AFTER DELETE ON group_members BEGIN
     WHERE NOT EXISTS (SELECT * FROM group_members WHERE "group" = "groups".id);
 END;
 
-CREATE INDEX groups_name ON "groups"(name);
+CREATE INDEX groups_name ON "groups"(name, upper(name));
 
 CREATE VIEW my_view WITH MyViewRow AS SELECT id FROM "groups";
 
@@ -134,7 +134,7 @@ const expected = r'''
 {
     "_meta": {
         "description": "This file contains a serialized version of schema entities for drift.",
-        "version": "1.0.0"
+        "version": "1.1.0"
     },
     "options": {
         "store_date_time_values_as_text": false
@@ -368,7 +368,9 @@ const expected = r'''
             "data": {
                 "on": 0,
                 "name": "groups_name",
-                "sql": "CREATE INDEX groups_name ON \"groups\"(name);"
+                "sql": "CREATE INDEX groups_name ON \"groups\"(name, upper(name));",
+                "unique": false,
+                "columns": []
             }
         },
         {

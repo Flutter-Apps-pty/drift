@@ -1,7 +1,27 @@
-## 2.12.0-dev
+## 2.13.0-dev
+
+- Add APIs to setup Wasm databases with custom drift workers.
+- Add support for [custom types](https://drift.simonbinder.eu/docs/sql-api/types/),
+  which are useful when extending drift to support other database engines.
+- Add `Expression.and` and `Expression.or` to create disjunctions and conjunctions
+  of sub-predicates.
+- Step-by-step migrations now save the intermediate schema version after each step.
+
+## 2.12.1
+
+- Fix `readWithConverter` throwing an exception for null values in non-
+  nullable columns.
+
+## 2.12.0
 
 - Add support for table-valued functions in the Dart query builder.
+- Add the `@TableIndex` annotation for table classes to add an index to the
+  table.
 - Support `json_each` and `json_tree`.
+- Add the `TypeConverter.json` method to define type converters storing JSON
+  values more easily.
+- Add `TypedResult.readWithConverter` to read a column with a type converter
+  from a join result row.
 
 ## 2.11.1
 

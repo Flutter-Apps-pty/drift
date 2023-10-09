@@ -7,6 +7,7 @@ import 'element.dart';
 
 import 'column.dart';
 import 'result_sets.dart';
+import 'types.dart';
 
 class DriftTable extends DriftElementWithResultSet {
   @override
@@ -53,6 +54,14 @@ class DriftTable extends DriftElementWithResultSet {
   /// `customConstraints` getter in the table class with this value.
   final List<String> overrideTableConstraints;
 
+  /// The names of indices that have been attached to this table using the
+  /// `@TableIndex` annotation in drift.
+  ///
+  /// This field only has the purpose of implicitly adding these indices to each
+  /// database adding this table, so that code for that index will get generated
+  /// without an explicit reference.
+  final List<String> attachedIndices;
+
   DriftColumn? _rowIdColumn;
 
   DriftTable(
@@ -71,9 +80,10 @@ class DriftTable extends DriftElementWithResultSet {
     this.virtualTableData,
     this.writeDefaultConstraints = true,
     this.overrideTableConstraints = const [],
+    this.attachedIndices = const [],
   }) {
     _rowIdColumn = DriftColumn(
-      sqlType: DriftSqlType.int,
+      sqlType: ColumnType.drift(DriftSqlType.int),
       nullable: false,
       nameInSql: 'rowid',
       nameInDart: 'rowid',
@@ -117,8 +127,9 @@ class DriftTable extends DriftElementWithResultSet {
     final primaryKey = fullPrimaryKey;
     if (primaryKey.length == 1) {
       final column = primaryKey.single;
-      if (column.sqlType == DriftSqlType.int ||
-          column.sqlType == DriftSqlType.bigInt) {
+      final builtinType = column.sqlType.builtin;
+      if (builtinType == DriftSqlType.int ||
+          builtinType == DriftSqlType.bigInt) {
         // So this column is an alias for the rowid
         return column;
       }

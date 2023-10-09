@@ -47,9 +47,10 @@ class $CategoriesTable extends Categories
   List<GeneratedColumn> get $columns =>
       [id, description, priority, descriptionInUpperCase];
   @override
-  String get aliasedName => _alias ?? 'categories';
+  String get aliasedName => _alias ?? actualTableName;
   @override
-  String get actualTableName => 'categories';
+  String get actualTableName => $name;
+  static const String $name = 'categories';
   @override
   VerificationContext validateIntegrity(Insertable<Category> instance,
       {bool isInserting = false}) {
@@ -246,6 +247,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     }
     if (priority.present) {
       final converter = $CategoriesTable.$converterpriority;
+
       map['priority'] = Variable<int>(converter.toSql(priority.value));
     }
     return map;
@@ -318,9 +320,10 @@ class $TodosTableTable extends TodosTable
   List<GeneratedColumn> get $columns =>
       [id, title, content, targetDate, category, status];
   @override
-  String get aliasedName => _alias ?? 'todos';
+  String get aliasedName => _alias ?? actualTableName;
   @override
-  String get actualTableName => 'todos';
+  String get actualTableName => $name;
+  static const String $name = 'todos';
   @override
   VerificationContext validateIntegrity(Insertable<TodoEntry> instance,
       {bool isInserting = false}) {
@@ -596,6 +599,7 @@ class TodosTableCompanion extends UpdateCompanion<TodoEntry> {
     }
     if (status.present) {
       final converter = $TodosTableTable.$converterstatusn;
+
       map['status'] = Variable<String>(converter.toSql(status.value));
     }
     return map;
@@ -667,9 +671,10 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   List<GeneratedColumn> get $columns =>
       [id, name, isAwesome, profilePicture, creationTime];
   @override
-  String get aliasedName => _alias ?? 'users';
+  String get aliasedName => _alias ?? actualTableName;
   @override
-  String get actualTableName => 'users';
+  String get actualTableName => $name;
+  static const String $name = 'users';
   @override
   VerificationContext validateIntegrity(Insertable<User> instance,
       {bool isInserting = false}) {
@@ -935,9 +940,10 @@ class $SharedTodosTable extends SharedTodos
   @override
   List<GeneratedColumn> get $columns => [todo, user];
   @override
-  String get aliasedName => _alias ?? 'shared_todos';
+  String get aliasedName => _alias ?? actualTableName;
   @override
-  String get actualTableName => 'shared_todos';
+  String get actualTableName => $name;
+  static const String $name = 'shared_todos';
   @override
   VerificationContext validateIntegrity(Insertable<SharedTodo> instance,
       {bool isInserting = false}) {
@@ -1139,9 +1145,10 @@ class $TableWithoutPKTable extends TableWithoutPK
   List<GeneratedColumn> get $columns =>
       [notReallyAnId, someFloat, webSafeInt, custom];
   @override
-  String get aliasedName => _alias ?? 'table_without_p_k';
+  String get aliasedName => _alias ?? actualTableName;
   @override
-  String get actualTableName => 'table_without_p_k';
+  String get actualTableName => $name;
+  static const String $name = 'table_without_p_k';
   @override
   VerificationContext validateIntegrity(Insertable<CustomRowClass> instance,
       {bool isInserting = false}) {
@@ -1264,6 +1271,7 @@ class TableWithoutPKCompanion extends UpdateCompanion<CustomRowClass> {
     }
     if (custom.present) {
       final converter = $TableWithoutPKTable.$convertercustom;
+
       map['custom'] = Variable<String>(converter.toSql(custom.value));
     }
     if (rowid.present) {
@@ -1320,9 +1328,10 @@ class $PureDefaultsTable extends PureDefaults
   @override
   List<GeneratedColumn> get $columns => [txt];
   @override
-  String get aliasedName => _alias ?? 'pure_defaults';
+  String get aliasedName => _alias ?? actualTableName;
   @override
-  String get actualTableName => 'pure_defaults';
+  String get actualTableName => $name;
+  static const String $name = 'pure_defaults';
   @override
   VerificationContext validateIntegrity(Insertable<PureDefault> instance,
       {bool isInserting = false}) {
@@ -1449,6 +1458,7 @@ class PureDefaultsCompanion extends UpdateCompanion<PureDefault> {
     final map = <String, Expression>{};
     if (txt.present) {
       final converter = $PureDefaultsTable.$convertertxtn;
+
       map['insert'] = Variable<String>(converter.toSql(txt.value));
     }
     if (rowid.present) {
@@ -1461,6 +1471,160 @@ class PureDefaultsCompanion extends UpdateCompanion<PureDefault> {
   String toString() {
     return (StringBuffer('PureDefaultsCompanion(')
           ..write('txt: $txt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WithCustomTypeTable extends WithCustomType
+    with TableInfo<$WithCustomTypeTable, WithCustomTypeData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WithCustomTypeTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<UuidValue> id = GeneratedColumn<UuidValue>(
+      'id', aliasedName, false,
+      type: const UuidType(), requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'with_custom_type';
+  @override
+  VerificationContext validateIntegrity(Insertable<WithCustomTypeData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => const {};
+  @override
+  WithCustomTypeData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WithCustomTypeData(
+      id: attachedDatabase.typeMapping
+          .read(const UuidType(), data['${effectivePrefix}id'])!,
+    );
+  }
+
+  @override
+  $WithCustomTypeTable createAlias(String alias) {
+    return $WithCustomTypeTable(attachedDatabase, alias);
+  }
+}
+
+class WithCustomTypeData extends DataClass
+    implements Insertable<WithCustomTypeData> {
+  final UuidValue id;
+  const WithCustomTypeData({required this.id});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<UuidValue>(id);
+    return map;
+  }
+
+  WithCustomTypeCompanion toCompanion(bool nullToAbsent) {
+    return WithCustomTypeCompanion(
+      id: Value(id),
+    );
+  }
+
+  factory WithCustomTypeData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WithCustomTypeData(
+      id: serializer.fromJson<UuidValue>(json['id']),
+    );
+  }
+  factory WithCustomTypeData.fromJsonString(String encodedJson,
+          {ValueSerializer? serializer}) =>
+      WithCustomTypeData.fromJson(
+          DataClass.parseJson(encodedJson) as Map<String, dynamic>,
+          serializer: serializer);
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<UuidValue>(id),
+    };
+  }
+
+  WithCustomTypeData copyWith({UuidValue? id}) => WithCustomTypeData(
+        id: id ?? this.id,
+      );
+  @override
+  String toString() {
+    return (StringBuffer('WithCustomTypeData(')
+          ..write('id: $id')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WithCustomTypeData && other.id == this.id);
+}
+
+class WithCustomTypeCompanion extends UpdateCompanion<WithCustomTypeData> {
+  final Value<UuidValue> id;
+  final Value<int> rowid;
+  const WithCustomTypeCompanion({
+    this.id = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WithCustomTypeCompanion.insert({
+    required UuidValue id,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id);
+  static Insertable<WithCustomTypeData> custom({
+    Expression<UuidValue>? id,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WithCustomTypeCompanion copyWith({Value<UuidValue>? id, Value<int>? rowid}) {
+    return WithCustomTypeCompanion(
+      id: id ?? this.id,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<UuidValue>(id.value, const UuidType());
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WithCustomTypeCompanion(')
+          ..write('id: $id, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1697,6 +1861,7 @@ abstract class _$TodoDb extends GeneratedDatabase {
   late final $SharedTodosTable sharedTodos = $SharedTodosTable(this);
   late final $TableWithoutPKTable tableWithoutPK = $TableWithoutPKTable(this);
   late final $PureDefaultsTable pureDefaults = $PureDefaultsTable(this);
+  late final $WithCustomTypeTable withCustomType = $WithCustomTypeTable(this);
   late final $CategoryTodoCountViewView categoryTodoCountView =
       $CategoryTodoCountViewView(this);
   late final $TodoWithCategoryViewView todoWithCategoryView =
@@ -1781,6 +1946,7 @@ abstract class _$TodoDb extends GeneratedDatabase {
         sharedTodos,
         tableWithoutPK,
         pureDefaults,
+        withCustomType,
         categoryTodoCountView,
         todoWithCategoryView
       ];

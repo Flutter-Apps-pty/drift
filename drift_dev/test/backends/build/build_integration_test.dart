@@ -22,14 +22,15 @@ class MyDatabase {}
       'a|lib/a.drift': '''
 import 'b.drift';
 
-CREATE INDEX b_idx /* comment should be stripped */ ON b (foo);
+CREATE INDEX b_idx /* comment should be stripped */ ON b (foo, upper(foo));
 ''',
       'a|lib/b.drift': 'CREATE TABLE b (foo TEXT);',
     });
 
     checkOutputs({
       'a|lib/main.drift.dart': decodedMatches(contains(
-          "late final Index bIdx = Index('b_idx', 'CREATE INDEX b_idx ON b (foo)')")),
+          'late final Index bIdx =\n'
+          "      Index('b_idx', 'CREATE INDEX b_idx ON b (foo, upper(foo))')")),
     }, result.dartOutputs, result.writer);
   });
 
@@ -318,6 +319,44 @@ TypeConverter<Object, int> myConverter() => throw UnimplementedError();
             contains(r'$converterc4n ='),
           ),
         ),
+      },
+      result.dartOutputs,
+      result.writer,
+    );
+  });
+
+  test('can restore types from multiple hints', () async {
+    final result = await emulateDriftBuild(
+      inputs: {
+        'a|lib/a.drift': '''
+import 'table.dart';
+
+CREATE VIEW my_view AS SELECT foo FROM my_table;
+''',
+        'a|lib/table.dart': '''
+import 'package:drift/drift.dart';
+
+class MyTable extends Table {
+  Int64Column get foo => int64().map(myConverter())();
+}
+
+enum MyEnum {
+  foo, bar
+}
+
+TypeConverter<Object, BigInt> myConverter() => throw UnimplementedError();
+''',
+      },
+      modularBuild: true,
+      logger: loggerThat(neverEmits(anything)),
+    );
+
+    checkOutputs(
+      {
+        'a|lib/a.drift.dart': decodedMatches(contains(
+            'foo: i2.\$MyTableTable.\$converterfoo.fromSql(attachedDatabase.typeMapping\n'
+            '          .read(i0.DriftSqlType.bigInt')),
+        'a|lib/table.drift.dart': decodedMatches(anything),
       },
       result.dartOutputs,
       result.writer,

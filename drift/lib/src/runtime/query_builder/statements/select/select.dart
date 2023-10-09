@@ -214,4 +214,14 @@ class TypedResult {
         'Invalid call to read(): $expr. This result set does not have a column '
         'for that expression.');
   }
+
+  /// Reads a column that has a type converter applied to it from the row.
+  ///
+  /// This calls [read] internally, which reads the column but without applying
+  /// a type converter.
+  D? readWithConverter<D, S extends Object>(
+      GeneratedColumnWithTypeConverter<D, S> column) {
+    return NullAwareTypeConverter.wrapFromSql(
+        column.converter, read<S>(column));
+  }
 }

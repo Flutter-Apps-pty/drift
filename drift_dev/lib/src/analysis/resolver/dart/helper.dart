@@ -22,10 +22,12 @@ class KnownDriftTypes {
   final LibraryElement helperLibrary;
   final ClassElement tableElement;
   final InterfaceType tableType;
+  final InterfaceType tableIndexType;
   final InterfaceType viewType;
   final InterfaceType tableInfoType;
   final InterfaceType driftDatabase;
   final InterfaceType driftAccessor;
+  final InterfaceElement customSqlType;
   final InterfaceElement typeConverter;
   final InterfaceElement jsonTypeConverter;
   final InterfaceType driftAny;
@@ -35,8 +37,10 @@ class KnownDriftTypes {
     this.helperLibrary,
     this.tableElement,
     this.tableType,
+    this.tableIndexType,
     this.viewType,
     this.tableInfoType,
+    this.customSqlType,
     this.typeConverter,
     this.jsonTypeConverter,
     this.driftDatabase,
@@ -57,8 +61,10 @@ class KnownDriftTypes {
       helper,
       tableElement,
       tableElement.defaultInstantiation,
+      (exportNamespace.get('TableIndex') as InterfaceElement).thisType,
       (exportNamespace.get('View') as InterfaceElement).thisType,
       (exportNamespace.get('TableInfo') as InterfaceElement).thisType,
+      exportNamespace.get('CustomSqlType') as InterfaceElement,
       exportNamespace.get('TypeConverter') as InterfaceElement,
       exportNamespace.get('JsonTypeConverter2') as InterfaceElement,
       dbElement.defaultInstantiation,
@@ -76,6 +82,10 @@ class KnownDriftTypes {
   /// Returns `null` if [type] is not a subtype of `TypeConverter`.
   InterfaceType? asTypeConverter(DartType type) {
     return type.asInstanceOf(typeConverter);
+  }
+
+  InterfaceType? asCustomType(DartType type) {
+    return type.asInstanceOf(customSqlType);
   }
 
   /// Converts the given Dart [type] into an instantiation of the
@@ -207,7 +217,7 @@ class DataClassInformation {
 
     for (final annotation in element.metadata) {
       final computed = annotation.computeConstantValue();
-      final annotationClass = computed!.type!.nameIfInterfaceType;
+      final annotationClass = computed?.type?.nameIfInterfaceType;
 
       if (annotationClass == 'DataClassName') {
         dataClassName = computed;

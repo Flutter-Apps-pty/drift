@@ -2,7 +2,8 @@
 export 'dart:typed_data' show Uint8List;
 
 export 'runtime/types/converters.dart' show TypeConverter, JsonTypeConverter2;
-export 'runtime/types/mapping.dart' show DriftAny;
+export 'runtime/types/mapping.dart' show DriftAny, CustomSqlType;
 export 'runtime/query_builder/query_builder.dart' show TableInfo;
 
-export 'dsl/dsl.dart' show Table, View, DriftDatabase, DriftAccessor;
+export 'dsl/dsl.dart'
+    show Table, TableIndex, View, DriftDatabase, DriftAccessor;

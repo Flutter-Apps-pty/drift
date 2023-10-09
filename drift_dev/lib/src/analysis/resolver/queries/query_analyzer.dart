@@ -1,5 +1,4 @@
 import 'package:analyzer/dart/ast/ast.dart' as dart;
-import 'package:drift/drift.dart' show DriftSqlType;
 import 'package:drift/drift.dart' as drift;
 import 'package:recase/recase.dart';
 import 'package:sqlparser/sqlparser.dart' hide ResultColumn;
@@ -293,8 +292,8 @@ class QueryAnalyzer {
       final mappedBy = source?.mappedBy;
       AppliedTypeConverter? converter;
 
-      if (type?.hint is TypeConverterHint) {
-        converter = (type!.hint as TypeConverterHint).converter;
+      if (type?.hint<TypeConverterHint>() case final TypeConverterHint h) {
+        converter = h.converter;
       } else if (mappedBy != null) {
         final dartExpression = _resolvedExpressions[mappedBy.mapper.dartCode];
         if (dartExpression != null) {
@@ -668,9 +667,11 @@ class QueryAnalyzer {
 
         // Recognizing type converters on variables is opt-in since it would
         // break existing code.
-        if (driver.options.applyConvertersOnVariables &&
-            internalType.type?.hint is TypeConverterHint) {
-          converter = (internalType.type!.hint as TypeConverterHint).converter;
+        if (driver.options.applyConvertersOnVariables) {
+          if (internalType.type?.hint<TypeConverterHint>()
+              case final TypeConverterHint h) {
+            converter = h.converter;
+          }
         }
 
         addNewElement(FoundVariable(
@@ -713,7 +714,7 @@ class QueryAnalyzer {
     final type = placeholder.when(
       isExpression: (e) {
         final foundType = context.typeOf(e);
-        DriftSqlType? columnType;
+        ColumnType? columnType;
         if (foundType.type != null) {
           columnType = driver.typeMapping.sqlTypeToDrift(foundType.type);
         }

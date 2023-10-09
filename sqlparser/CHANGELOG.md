@@ -1,3 +1,15 @@
+## 0.32.0-dev
+
+- Turn `ResolvedType.hints` into a list, supporting multiple type hints.
+
+## 0.31.3
+
+- Fix star columns expanding to more columns than they should.
+
+## 0.31.2
+
+- Add `CaseInsensitiveMap.of` to wrap existing maps.
+
 ## 0.31.1
 
 - Add the `sqlite3_schema` table to the builtin tables supported by every

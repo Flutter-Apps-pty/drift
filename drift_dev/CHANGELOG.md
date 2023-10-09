@@ -1,4 +1,19 @@
-## 2.11.2-dev
+## 2.13.0-dev
+
+- Fix indices not being created for Dart tables from different files.
+- Fix type converters on `int64` columns not propagating properly.
+
+## 2.12.1
+
+- Fix invalid types listed in `views` crashing the generator.
+- Fix indices in drift files crashing the generator when they index expressions.
+
+## 2.12.0
+
+- Adds the static getter `$name` to generated table classes.
+- Recognize and analyze the `@TableIndex` annotation.
+
+## 2.11.2
 
 - Follow `export` directives when looking for table imports.
 

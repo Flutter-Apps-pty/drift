@@ -20,6 +20,7 @@ class DriftIndexResolver extends DriftElementResolver<DiscoveredDriftIndex> {
 
     final onTable = stmt.on.resolved;
     DriftTable? target;
+
     if (onTable is Table) {
       target = references
           .whereType<DriftTable>()
@@ -30,6 +31,8 @@ class DriftIndexResolver extends DriftElementResolver<DiscoveredDriftIndex> {
       discovered.ownId,
       DriftDeclaration.driftFile(stmt, file.ownUri),
       table: target,
+      indexedColumns: [],
+      unique: stmt.unique,
       createStmt: source.substring(stmt.firstPosition, stmt.lastPosition),
     );
   }

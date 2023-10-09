@@ -5,6 +5,7 @@ import 'package:sqlparser/utils/node_to_text.dart';
 
 import '../analysis/results/results.dart';
 import '../utils/string_escaper.dart';
+import 'database_writer.dart';
 import 'tables/table_writer.dart';
 import 'writer.dart';
 
@@ -46,7 +47,7 @@ final class _TableShape {
       DriftElementWithResultSet e) {
     return {
       for (final column in e.columns)
-        column.nameInDart: (column.nameInSql, column.sqlType),
+        column.nameInDart: (column.nameInSql, column.sqlType.builtin),
     };
   }
 }
@@ -157,9 +158,19 @@ class SchemaVersionWriter {
     });
   }
 
+  String _suffixForElement(DriftSchemaElement element) => switch (element) {
+        DriftTable() => 'Table',
+        DriftView() => 'View',
+        DriftIndex() => 'Index',
+        DriftTrigger() => 'Trigger',
+        _ => throw ArgumentError('Unhandled element type $element'),
+      };
+
   String _writeWithResultSet(
-      DriftElementWithResultSet entity, TextEmitter writer) {
-    final getterName = entity.dbGetterName;
+    String getterName,
+    DriftElementWithResultSet entity,
+    TextEmitter writer,
+  ) {
     final shape = _shapeClass(entity);
     writer
       ..write('late final $shape $getterName = ')
@@ -258,37 +269,32 @@ class SchemaVersionWriter {
     writer.write('attachedDatabase: database,');
     writer.write('), alias: null)');
 
-    return getterName!;
+    return getterName;
   }
 
   String _writeEntity({
     required DriftSchemaElement element,
     required TextEmitter definition,
   }) {
-    String name;
+    final name = definition.parent!.getNonConflictingName(
+      element.dbGetterName!,
+      (name) => name + _suffixForElement(element),
+    );
 
     if (element is DriftElementWithResultSet) {
-      name = _writeWithResultSet(element, definition);
+      _writeWithResultSet(name, element, definition);
     } else if (element is DriftIndex) {
-      name = element.dbGetterName;
       final index = definition.drift('Index');
 
       definition
-        ..write('final $index $name = $index(')
-        ..write(asDartLiteral(element.schemaName))
-        ..write(',')
-        ..write(asDartLiteral(element.createStmt))
-        ..write(')');
+        ..write('final $index $name = ')
+        ..writeln(DatabaseWriter.createIndex(definition.parent!, element));
     } else if (element is DriftTrigger) {
-      name = element.dbGetterName;
       final trigger = definition.drift('Trigger');
 
       definition
-        ..write('final $trigger $name = $trigger(')
-        ..write(asDartLiteral(element.createStmt))
-        ..write(',')
-        ..write(asDartLiteral(element.schemaName))
-        ..write(')');
+        ..write('final $trigger $name = ')
+        ..writeln(DatabaseWriter.createTrigger(definition.parent!, element));
     } else {
       throw ArgumentError('Unhandled element type $element');
     }
@@ -318,6 +324,17 @@ class SchemaVersionWriter {
       final versionNo = version.version;
       final versionClass = '_S$versionNo';
       final versionScope = libraryScope.child();
+
+      // Reserve all the names already in use in [VersionedSchema] and its
+      // superclasses. Without this certain table names would cause us to
+      // generate invalid code.
+      versionScope.reserveNames([
+        'database',
+        'entities',
+        'version',
+        'stepByStepHelper',
+        'runMigrationSteps',
+      ]);
 
       // Write an _S<x> class for each schema version x.
       versionScope.leaf()
