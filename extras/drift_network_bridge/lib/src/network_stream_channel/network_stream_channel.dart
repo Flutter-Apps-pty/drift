@@ -179,7 +179,7 @@ class StreamSinkWrapper implements StreamSink<Object?> {
       }
     }
 
-    _client.add(jsonEncode(event));
+    _client.add(jsonEncode(event,toEncodable: (e) => e.toString()));
   }
 
   @override
