@@ -1,6 +1,10 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - '**' # we just don't want this to run redundantly on tags
+  pull_request:
 
 env:
   PUB_ENVIRONMENT: bot.github
@@ -184,7 +188,7 @@ jobs:
         working-directory: extras/drift_postgres
         run: |
           dart pub upgrade
-          dart test
+          dart test -j 1
       - name: MariaDB integration tests
         working-directory: extras/drift_mariadb
         continue-on-error: true

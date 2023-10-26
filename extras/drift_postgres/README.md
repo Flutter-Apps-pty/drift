@@ -1,4 +1,10 @@
-An experimental postgres backend for Drift.
+`package:drift_postgres` extends [drift](https://drift.simonbinder.eu/) to support
+talking to PostgreSQL databases by using the `postgres` package.
+
+This package is currently in alpha. It uses preview APIs from the `postgres` packages,
+which may require this package to be updated if there are breaking changes in that
+package. Once these APIs from `postgres` are stabilized, a stable version of `drift_postgres`
+will be released as well.
 
 ## Using this
 
@@ -8,15 +14,23 @@ To use drift_postgres, add this to your `pubspec.yaml`
 ```yaml
 dependencies:
   drift: "$latest version"
-  drift_postgres:
-   git:
-    url: https://github.com/simolus3/drift.git
-    path: extras/drift_postgres
+  drift_postgres: ^0.1.0
 ```
 
-To connect your drift database class to postgres, use a `PgDatabase` from `package:drift_postgres/postgres.dart`.
+To connect your drift database class to postgres, use a `PgDatabase` from `package:drift_postgres/postgres.dart`:
 
-## Testing
+```dart
+final database = AppDatabase(PgDatabase(
+  endpoint: PgEndpoint(
+    host: 'localhost',
+    database: 'postgres',
+    username: 'postgres',
+    password: 'postgres',
+  ),
+));
+```
+
+## Running tests
 
 To test this package, first run
 
@@ -24,4 +38,4 @@ To test this package, first run
 docker run -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres
 ```
 
-It can then be tested with `dart test`.
+It can then be tested with `dart test -j 1` (concurrency needs to be disabled since tests are using the same database).

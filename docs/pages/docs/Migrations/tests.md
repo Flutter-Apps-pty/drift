@@ -48,7 +48,7 @@ In general, a test looks like this:
 2. Create your application database with that connection. For this, create a constructor in your database class that
    accepts a `QueryExecutor` and forwards it to the super constructor in `GeneratedDatabase`.
    Then, you can pass the result of calling `newConnection()` to that constructor to create a test instance of your
-   datbaase.
+   database.
 3. Call `verifier.migrateAndValidate(db, version)`. This will initiate a migration towards the target version (here, `2`).
    Unlike the database created by `startAt`, this uses the migration logic you wrote for your database.
 
@@ -57,7 +57,7 @@ If it sees anything unexpected, it will throw a `SchemaMismatch` exception to fa
 
 {% block "blocks/alert" title="Writing testable migrations" %}
 To test migrations _towards_ an old schema version (e.g. from `v1` to `v2` if your current version is `v3`),
-you're `onUpgrade` handler must be capable of upgrading to a version older than the current `schemaVersion`.
+your `onUpgrade` handler must be capable of upgrading to a version older than the current `schemaVersion`.
 For this, check the `to` parameter of the `onUpgrade` callback to run a different migration if necessary.
 Or, use [step-by-step migrations]({{ 'step_by_step.md' | pageUrl }}) which do this automatically.
 {% endblock %}

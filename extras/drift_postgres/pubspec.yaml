@@ -1,6 +1,9 @@
 name: drift_postgres
-description: Postgres support for drift
-version: 1.0.0
+description: Postgres implementation and APIs for the drift database package.
+version: 0.2.0-dev
+repository: https://github.com/simolus3/drift
+homepage: https://drift.simonbinder.eu/docs/platforms/postgres/
+issue_tracker: https://github.com/simolus3/drift/issues
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -8,7 +11,7 @@ environment:
 dependencies:
   collection: ^1.16.0
   drift: ^2.0.0
-  postgres:
+  postgres: ^3.0.0-0
   meta: ^1.8.0
   uuid: ^4.1.0
 
@@ -23,6 +26,3 @@ dev_dependencies:
 dependency_overrides:
   drift:
     path: ../../drift
-  postgres:
-    git:
-      url: https://github.com/isoos/postgresql-dart.git
