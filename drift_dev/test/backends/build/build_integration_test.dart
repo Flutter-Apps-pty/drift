@@ -1,3 +1,7 @@
+@Timeout(Duration(minutes: 45))
+
+import 'dart:convert';
+
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
 import 'package:drift_dev/src/backends/build/analyzer.dart';
@@ -612,6 +616,96 @@ class MyDatabase {
 
     // Make sure we didn't forget an assertion.
     expect(readAssets, isEmpty);
+  });
+
+  test('generates views from drift tables', () async {
+    final debugLogger = Logger('driftBuild');
+    debugLogger.onRecord.listen((e) => print(e.message));
+    final result = await emulateDriftBuild(
+      inputs: {
+        'a|lib/drift/datastore/views/combo_group_view.dart': '''
+import 'package:drift/drift.dart';
+import '../datastore_db.dart';
+abstract class ComboGroupView extends View {
+  late final DatastoreDb attachedDatabase;
+  IntColumn get comboGroupID => attachedDatabase.comboGroup.comboGroupID;
+  IntColumn get objectNumber => attachedDatabase.comboGroup.objectNumber;
+  TextColumn get stringText => attachedDatabase.stringTable.stringText;
+  ComboGroup get comboGroup => attachedDatabase.comboGroup;
+  @override
+  Query as() => select([
+        comboGroupID,
+        objectNumber,
+        stringText,
+      ]).from(comboGroup).join([
+        innerJoin(
+            attachedDatabase.stringTable,
+            attachedDatabase.stringTable.stringNumberID
+                .equalsExp(attachedDatabase.comboGroup.nameID)),
+      ]);
+}
+''',
+        'a|lib/drift/datastore/tables/combo_group.drift': '''
+CREATE TABLE [COMBO_GROUP](
+	[ComboGroupID] [int] NOT NULL PRIMARY KEY,
+	[HierStrucID] [bigint] NULL,
+	[ObjectNumber] [int] NULL,
+	[NameID] [bigint] NULL,
+	[OptionBits] [nvarchar](8) NULL,
+	[SluIndex] [int] NULL,
+	[HhtSluIndex] [int] NULL);
+''',
+        'a|lib/drift/datastore/tables/string_table.drift': '''
+CREATE TABLE [STRING_TABLE](
+	[StringID] [bigint] NOT NULL PRIMARY KEY,
+	[StringNumberID] [bigint] NULL,
+	[LangID] [int] NULL,
+	[IsVisible] [bit] NOT NULL DEFAULT ((1)),
+	[IsDeleted] [bit] NOT NULL DEFAULT ((0)),
+	[HierStrucID] [bigint] NULL,
+	[PosRef] [bigint] NULL,
+	[StringText] [nvarchar](128) NULL
+);
+       ''',
+        'a|lib/drift/datastore/datastore_db.dart': '''
+        import 'package:drift/drift.dart';
+        import 'views/combo_group_view.dart';
+        
+        part 'datastore_db.g.dart';
+        @DriftDatabase(
+          views: [ComboGroupView],
+          include: {'tables/combo_group.drift'},
+        )
+        class DatastoreDb extends _\$DatastoreDb {
+        }
+        '''
+      },
+      modularBuild: true,
+      options: BuilderOptions({'assume_correct_reference': true}),
+      logger: debugLogger
+    );
+
+    var actual = utf8.decode(result.writer.assets[(result.writer.assets.keys
+        .firstWhere((key) => key.path.contains('combo_group_view.drift.dart')))]!);
+
+    print('actual: $actual');
+    // checkOutputs(
+    //   {
+    //     'a|lib/a.drift.dart': decodedMatches(
+    //       allOf(
+    //         contains(
+    //             ''''CREATE VIEW my_view AS SELECT CAST(1 AS INT) AS c1, CAST(\\'bar\\' AS TEXT) AS c2, 1 AS c3, NULLIF(1, 2) AS c4','''),
+    //         contains(r'$converterc1 ='),
+    //         contains(r'$converterc2 ='),
+    //         contains(r'$converterc3 ='),
+    //         contains(r'$converterc4 ='),
+    //         contains(r'$converterc4n ='),
+    //       ),
+    //     ),
+    //   },
+    //   result.dartOutputs,
+    //   result.writer,
+    // );
   });
 
   group('reports issues', () {
