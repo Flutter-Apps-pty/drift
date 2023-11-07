@@ -34,6 +34,7 @@ class DartViewResolver extends LocalElementResolver<DiscoveredDartView> {
         structure.dartQuerySource,
         structure.primarySource,
         staticReferences,
+        structure.staticSource
       ),
       references: [
         for (final reference in staticReferences) reference.table,
@@ -178,7 +179,7 @@ class DartViewResolver extends LocalElementResolver<DiscoveredDartView> {
     final from = target.argumentList.arguments[0].toSource();
     final resolvedFrom =
         references.firstWhereOrNull((element) => element.name == from);
-    if (resolvedFrom == null) {
+    if (resolvedFrom == null && !resolver.driver.options.assumeCorrectReference) {
       reportError(
         DriftAnalysisError.inDartAst(
           as,
@@ -192,7 +193,7 @@ class DartViewResolver extends LocalElementResolver<DiscoveredDartView> {
     final query = AnnotatedDartCode.build(
         (builder) => builder.addAstNode(body.expression, exclude: {target!}));
     return _ParsedDartViewSelect(
-        resolvedFrom, innerJoins, outerJoins, columnExpressions, query);
+        resolvedFrom, innerJoins, outerJoins, columnExpressions, query, from);
   }
 
   Future<List<DriftColumn>> _parseColumns(
@@ -209,7 +210,7 @@ class DartViewResolver extends LocalElementResolver<DiscoveredDartView> {
       if (parts.length > 1) {
         final reference =
             references.firstWhereOrNull((ref) => ref.name == parts[0]);
-        if (reference == null) {
+        if (reference == null || reference.table == null) {
           reportError(DriftAnalysisError.inDartAst(
             discovered.dartElement,
             columnReference,
@@ -310,8 +311,9 @@ class _ParsedDartViewSelect {
   final List<Expression> selectedColumns;
   final AnnotatedDartCode dartQuerySource;
 
+  final String? staticSource;
   _ParsedDartViewSelect(this.primarySource, this.innerJoins, this.outerJoins,
-      this.selectedColumns, this.dartQuerySource);
+      this.selectedColumns, this.dartQuerySource, [this.staticSource]);
 
   bool referenceIsNullable(TableReferenceInDartView ref) {
     return ref != primarySource && !innerJoins.contains(ref);

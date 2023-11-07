@@ -621,32 +621,106 @@ class MyDatabase {
   test('generates views from drift tables', () async {
     final debugLogger = Logger('driftBuild');
     debugLogger.onRecord.listen((e) => print(e.message));
+
     final result = await emulateDriftBuild(
       inputs: {
-        'a|lib/drift/datastore/views/combo_group_view.dart': '''
+        'a|lib/drift/datastore_db.dart': '''
 import 'package:drift/drift.dart';
-import '../datastore_db.dart';
+part 'datastore_db.g.dart';
+mixin AutoIncrement on Table {
+  IntColumn get id => integer().autoIncrement()();
+}
+@DataClassName('TodoEntry')
+class TodosTable extends Table with AutoIncrement {
+  @override
+  String get tableName => 'todos';
+  TextColumn get title => text().withLength(min: 4, max: 16).nullable()();
+  TextColumn get content => text()();
+  @JsonKey('target_date')
+  DateTimeColumn get targetDate => dateTime().nullable().unique()();
+  IntColumn get category => integer().references(Categories, #id).nullable()();
+  TextColumn get status => textEnum<TodoStatus>().nullable()();
+
+  @override
+  List<Set<Column>>? get uniqueKeys => [
+    {title, category},
+    {title, targetDate},
+  ];
+}
+
+enum TodoStatus { open, workInProgress, done }
+
+class Users extends Table with AutoIncrement {
+  TextColumn get name => text().withLength(min: 6, max: 32).unique()();
+  BoolColumn get isAwesome => boolean().withDefault(const Constant(true))();
+
+  BlobColumn get profilePicture => blob()();
+  DateTimeColumn get creationTime => dateTime()
+  // ignore: recursive_getters
+      .check(creationTime.isBiggerThan(Constant(DateTime.utc(1950))))
+      .withDefault(currentDateAndTime)();
+}
+
+@DataClassName('Category')
+class Categories extends Table with AutoIncrement {
+  TextColumn get description =>
+      text().named('desc').customConstraint('NOT NULL UNIQUE')();
+  IntColumn get priority =>
+      intEnum<CategoryPriority>().withDefault(const Constant(0))();
+
+  TextColumn get descriptionInUpperCase =>
+      text().generatedAs(description.upper())();
+}
+
+enum CategoryPriority { low, medium, high }
+abstract class CategoryTodoCountView extends View {
+  TodosTable get todos;
+  Categories get categories;
+
+  Expression<int> get categoryId => categories.id;
+  Expression<String> get description =>
+      categories.description + const Variable('!');
+  Expression<int> get itemCount => todos.id.count();
+
+  @override
+  Query as() => select([categoryId, description, itemCount])
+      .from(categories)
+      .join([innerJoin(todos, todos.category.equalsExp(categories.id))])
+    ..groupBy([categories.id]);
+}
 abstract class ComboGroupView extends View {
   late final DatastoreDb attachedDatabase;
   IntColumn get comboGroupID => attachedDatabase.comboGroup.comboGroupID;
   IntColumn get objectNumber => attachedDatabase.comboGroup.objectNumber;
   TextColumn get stringText => attachedDatabase.stringTable.stringText;
-  ComboGroup get comboGroup => attachedDatabase.comboGroup;
+  // ComboGroup get comboGroup => attachedDatabase.comboGroup;
+  // late final ComboGroup comboGroup;
   @override
   Query as() => select([
-        comboGroupID,
-        objectNumber,
-        stringText,
-      ]).from(comboGroup).join([
-        innerJoin(
-            attachedDatabase.stringTable,
-            attachedDatabase.stringTable.stringNumberID
-                .equalsExp(attachedDatabase.comboGroup.nameID)),
-      ]);
+    comboGroupID,
+    objectNumber,
+    stringText,
+  ]).from(attachedDatabase.comboGroup).join([
+    innerJoin(
+        attachedDatabase.stringTable,
+        attachedDatabase.stringTable.stringNumberID
+            .equalsExp(attachedDatabase.comboGroup.nameID)),
+  ]);
 }
-''',
-        'a|lib/drift/datastore/tables/combo_group.drift': '''
-CREATE TABLE [COMBO_GROUP](
+
+@DriftDatabase(
+  tables: [TodosTable, Categories],
+  include: {'combo_group.drift','string_table.drift'},
+  views: [CategoryTodoCountView,ComboGroupView],
+)
+class DatastoreDb extends _\$DatastoreDb {
+  DatastoreDb(super.e);
+  @override
+  int get schemaVersion => 1;
+}
+        ''',
+        'a|lib/drift/combo_group.drift': '''
+        CREATE TABLE [COMBO_GROUP](
 	[ComboGroupID] [int] NOT NULL PRIMARY KEY,
 	[HierStrucID] [bigint] NULL,
 	[ObjectNumber] [int] NULL,
@@ -654,8 +728,8 @@ CREATE TABLE [COMBO_GROUP](
 	[OptionBits] [nvarchar](8) NULL,
 	[SluIndex] [int] NULL,
 	[HhtSluIndex] [int] NULL);
-''',
-        'a|lib/drift/datastore/tables/string_table.drift': '''
+	''',
+    'a|lib/drift/string_table.drift': '''
 CREATE TABLE [STRING_TABLE](
 	[StringID] [bigint] NOT NULL PRIMARY KEY,
 	[StringNumberID] [bigint] NULL,
@@ -666,46 +740,29 @@ CREATE TABLE [STRING_TABLE](
 	[PosRef] [bigint] NULL,
 	[StringText] [nvarchar](128) NULL
 );
-       ''',
-        'a|lib/drift/datastore/datastore_db.dart': '''
-        import 'package:drift/drift.dart';
-        import 'views/combo_group_view.dart';
-        
-        part 'datastore_db.g.dart';
-        @DriftDatabase(
-          views: [ComboGroupView],
-          include: {'tables/combo_group.drift'},
-        )
-        class DatastoreDb extends _\$DatastoreDb {
-        }
-        '''
+	''',
       },
       modularBuild: true,
       options: BuilderOptions({'assume_correct_reference': true}),
       logger: debugLogger
     );
 
-    var actual = utf8.decode(result.writer.assets[(result.writer.assets.keys
-        .firstWhere((key) => key.path.contains('combo_group_view.drift.dart')))]!);
+    // var actual = utf8.decode(result.writer.assets[(result.writer.assets.keys
+    //     .firstWhere((key) => key.path == ('lib/drift/datastore_db.drift.dart')))]!);
 
-    print('actual: $actual');
-    // checkOutputs(
-    //   {
-    //     'a|lib/a.drift.dart': decodedMatches(
-    //       allOf(
-    //         contains(
-    //             ''''CREATE VIEW my_view AS SELECT CAST(1 AS INT) AS c1, CAST(\\'bar\\' AS TEXT) AS c2, 1 AS c3, NULLIF(1, 2) AS c4','''),
-    //         contains(r'$converterc1 ='),
-    //         contains(r'$converterc2 ='),
-    //         contains(r'$converterc3 ='),
-    //         contains(r'$converterc4 ='),
-    //         contains(r'$converterc4n ='),
-    //       ),
-    //     ),
-    //   },
-    //   result.dartOutputs,
-    //   result.writer,
-    // );
+    checkOutputs(
+      {
+        'a|lib/drift/datastore_db.drift.dart': decodedMatches(
+          allOf(
+            contains(r'attachedDatabase.selectOnly(attachedDatabase.comboGroup)'),
+          ),
+        ),
+      'a|lib/drift/combo_group.drift.dart' : anything,
+      'a|lib/drift/string_table.drift.dart' : anything,
+      },
+      result.dartOutputs,
+      result.writer,
+    );
   });
 
   group('reports issues', () {
