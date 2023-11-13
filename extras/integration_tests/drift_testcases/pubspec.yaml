@@ -19,4 +19,4 @@ dev_dependencies:
 
 dependency_overrides:
   drift:
-    path: ../../drift
+    path: ../../../drift

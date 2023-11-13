@@ -627,91 +627,43 @@ class MyDatabase {
         'a|lib/drift/datastore_db.dart': '''
 import 'package:drift/drift.dart';
 part 'datastore_db.g.dart';
-mixin AutoIncrement on Table {
-  IntColumn get id => integer().autoIncrement()();
-}
-@DataClassName('TodoEntry')
-class TodosTable extends Table with AutoIncrement {
-  @override
-  String get tableName => 'todos';
-  TextColumn get title => text().withLength(min: 4, max: 16).nullable()();
-  TextColumn get content => text()();
-  @JsonKey('target_date')
-  DateTimeColumn get targetDate => dateTime().nullable().unique()();
-  IntColumn get category => integer().references(Categories, #id).nullable()();
-  TextColumn get status => textEnum<TodoStatus>().nullable()();
 
-  @override
-  List<Set<Column>>? get uniqueKeys => [
-    {title, category},
-    {title, targetDate},
-  ];
-}
-
-enum TodoStatus { open, workInProgress, done }
-
-class Users extends Table with AutoIncrement {
-  TextColumn get name => text().withLength(min: 6, max: 32).unique()();
-  BoolColumn get isAwesome => boolean().withDefault(const Constant(true))();
-
-  BlobColumn get profilePicture => blob()();
-  DateTimeColumn get creationTime => dateTime()
-  // ignore: recursive_getters
-      .check(creationTime.isBiggerThan(Constant(DateTime.utc(1950))))
-      .withDefault(currentDateAndTime)();
-}
-
-@DataClassName('Category')
-class Categories extends Table with AutoIncrement {
-  TextColumn get description =>
-      text().named('desc').customConstraint('NOT NULL UNIQUE')();
-  IntColumn get priority =>
-      intEnum<CategoryPriority>().withDefault(const Constant(0))();
-
-  TextColumn get descriptionInUpperCase =>
-      text().generatedAs(description.upper())();
-}
-
-enum CategoryPriority { low, medium, high }
-abstract class CategoryTodoCountView extends View {
-  TodosTable get todos;
-  Categories get categories;
-
-  Expression<int> get categoryId => categories.id;
-  Expression<String> get description =>
-      categories.description + const Variable('!');
-  Expression<int> get itemCount => todos.id.count();
-
-  @override
-  Query as() => select([categoryId, description, itemCount])
-      .from(categories)
-      .join([innerJoin(todos, todos.category.equalsExp(categories.id))])
-    ..groupBy([categories.id]);
-}
-abstract class ComboGroupView extends View {
+abstract class DescriptorView extends View {
   late final DatastoreDb attachedDatabase;
-  IntColumn get comboGroupID => attachedDatabase.comboGroup.comboGroupID;
-  IntColumn get objectNumber => attachedDatabase.comboGroup.objectNumber;
+
+  IntColumn get descriptorID => attachedDatabase.descriptors.descriptorID;
+  IntColumn get hierStrucID => attachedDatabase.descriptors.hierStrucID;
+  IntColumn get descType => attachedDatabase.descriptors.descType;
+  IntColumn get lineNumber => attachedDatabase.descriptors.lineNumber;
+  RealColumn get isVisible => attachedDatabase.descriptors.isVisible;
+  RealColumn get isDeleted => attachedDatabase.descriptors.isDeleted;
+  TextColumn get optionBits => attachedDatabase.descriptors.optionBits;
+
   TextColumn get stringText => attachedDatabase.stringTable.stringText;
-  // ComboGroup get comboGroup => attachedDatabase.comboGroup;
-  // late final ComboGroup comboGroup;
+
+
   @override
   Query as() => select([
-    comboGroupID,
-    objectNumber,
-    stringText,
-  ]).from(attachedDatabase.comboGroup).join([
+    descriptorID,
+    hierStrucID,
+    descType,
+    lineNumber,
+    isVisible,
+    isDeleted,
+    optionBits,
+    stringText
+  ]).from(attachedDatabase.descriptors).join([
     innerJoin(
         attachedDatabase.stringTable,
         attachedDatabase.stringTable.stringNumberID
-            .equalsExp(attachedDatabase.comboGroup.nameID)),
+            .equalsExp(attachedDatabase.descriptors.stringNumberID)),
   ]);
 }
 
 @DriftDatabase(
-  tables: [TodosTable, Categories],
-  include: {'combo_group.drift','string_table.drift'},
-  views: [CategoryTodoCountView,ComboGroupView],
+  tables: [],
+  include: {'descriptors.drift','string_table.drift'},
+  views: [DescriptorView],
 )
 class DatastoreDb extends _\$DatastoreDb {
   DatastoreDb(super.e);
@@ -719,15 +671,17 @@ class DatastoreDb extends _\$DatastoreDb {
   int get schemaVersion => 1;
 }
         ''',
-        'a|lib/drift/combo_group.drift': '''
-        CREATE TABLE [COMBO_GROUP](
-	[ComboGroupID] [int] NOT NULL PRIMARY KEY,
+        'a|lib/drift/descriptors.drift': '''
+CREATE TABLE [DESCRIPTORS](
+	[DescriptorID] [int] NOT NULL PRIMARY KEY,
 	[HierStrucID] [bigint] NULL,
-	[ObjectNumber] [int] NULL,
-	[NameID] [bigint] NULL,
-	[OptionBits] [nvarchar](8) NULL,
-	[SluIndex] [int] NULL,
-	[HhtSluIndex] [int] NULL);
+	[DescType] [int] NULL,
+	[LineNumber] [int] NULL,
+	[StringNumberID] [bigint] NULL,
+	[IsVisible] [bit] NULL,
+	[IsDeleted] [bit] NULL,
+	[OptionBits] [nvarchar](16) NULL
+);
 	''',
     'a|lib/drift/string_table.drift': '''
 CREATE TABLE [STRING_TABLE](
@@ -747,17 +701,17 @@ CREATE TABLE [STRING_TABLE](
       logger: debugLogger
     );
 
-    // var actual = utf8.decode(result.writer.assets[(result.writer.assets.keys
-    //     .firstWhere((key) => key.path == ('lib/drift/datastore_db.drift.dart')))]!);
+    var actual = utf8.decode(result.writer.assets[(result.writer.assets.keys
+        .firstWhere((key) => key.path == ('lib/drift/datastore_db.drift.dart')))]!);
 
     checkOutputs(
       {
         'a|lib/drift/datastore_db.drift.dart': decodedMatches(
           allOf(
-            contains(r'attachedDatabase.selectOnly(attachedDatabase.comboGroup)'),
+            contains(r'attachedDatabase.selectOnly(attachedDatabase.descriptors)'),
           ),
         ),
-      'a|lib/drift/combo_group.drift.dart' : anything,
+      'a|lib/drift/descriptors.drift.dart' : anything,
       'a|lib/drift/string_table.drift.dart' : anything,
       },
       result.dartOutputs,

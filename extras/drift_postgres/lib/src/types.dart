@@ -43,7 +43,7 @@ class UuidType extends PostgresType<UuidValue> {
 
   @override
   UuidValue read(Object fromSql) {
-    return UuidValue(fromSql as String);
+    return UuidValue.fromString(fromSql as String);
   }
 }
 
