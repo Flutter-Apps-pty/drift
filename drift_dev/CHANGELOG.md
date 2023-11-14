@@ -1,3 +1,9 @@
+## 2.14.0-dev
+
+## 2.13.2
+
+- Fix generated queries relying on custom types.
+
 ## 2.13.1
 
 - Add `has_separate_analyzer` option to optimize builds using the `not_shared` builder.

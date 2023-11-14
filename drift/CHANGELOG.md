@@ -1,3 +1,8 @@
+## 2.14.0-dev
+
+- Add the `QueryInterceptor` to easily monitor all database calls made by drift.
+- Add the `count()` extension on tables to easily count rows in tables or views.
+
 ## 2.13.1
 
 - Fix a bug when running batches over serialized communication channels.
