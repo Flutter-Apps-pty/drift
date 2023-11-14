@@ -1,6 +1,7 @@
 @Timeout(Duration(minutes: 45))
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:build/build.dart';
 import 'package:build_test/build_test.dart';
@@ -764,6 +765,65 @@ CREATE TABLE [STRING_TABLE](
       result.writer,
     );
   });
+
+  test('generates views from drift tables in live project', () async {
+    final debugLogger = Logger('driftBuild');
+    debugLogger.onRecord.listen((e) => print(e.message));
+    String libDir = 'D:/Github/Api/micros_api/lib/drift/datastore';
+    final dir = Directory(libDir);
+    final files = dir.listSync(recursive: true, followLinks: false);
+    final inputs = <String, String>{};
+    final filesOfInvestigation = <String>['datastore_db.dart','tables.drift','views.dart'];
+
+    filesOfInvestigation.add('content_data_string_view.dart');
+    filesOfInvestigation.add('content.drift');
+    filesOfInvestigation.add('content_data.drift');
+    filesOfInvestigation.add('content_type.drift');
+    filesOfInvestigation.add('string_table.drift');
+
+    files.removeWhere((file) => !filesOfInvestigation.contains(file.path.split('\\').last));
+    // Read all files in the directory and populate the inputs map
+    for (var file in files) {
+      if (file is File) {
+        String path = file.path;
+        // Convert system path to asset path
+        // String assetPath = path.replaceFirst('D:/Github/Api/micros_api/', 'micros_api|');
+
+        // Assets from other packages are visible, but we're not running
+        // builders on them.
+        String assetPath = path.replaceFirst('D:/Github/Api/micros_api/', 'a|');
+        inputs[assetPath] = file.readAsStringSync();
+      }
+    }
+
+    final result = await emulateDriftBuild(
+        inputs: inputs,
+        modularBuild: true,
+        options: BuilderOptions({'assume_correct_reference': true}),
+        logger: debugLogger
+    );
+
+    var actual = utf8.decode(result.writer.assets[(result.writer.assets.keys
+        .firstWhere((key) => key.path == ('lib/drift/datastore/datastore_db.drift.dart')))]!);
+
+    var actual2 = utf8.decode(result.writer.assets[(result.writer.assets.keys
+        .firstWhere((key) => key.path == ('lib/drift/datastore/views.dart.drift_elements.json')))]!);
+    // Check outputs
+    checkOutputs(
+      {
+        'micros_api|lib/drift/datastore_db.drift.dart': decodedMatches(
+          allOf(
+            contains(r'attachedDatabase.selectOnly(attachedDatabase.comboGroup)'),
+          ),
+        ),
+        'micros_api|lib/drift/combo_group.drift.dart' : anything,
+        'micros_api|lib/drift/string_table.drift.dart' : anything,
+      },
+      result.dartOutputs,
+      result.writer,
+    );
+  });
+
 
   group('reports issues', () {
     for (final fatalWarnings in [false, true]) {
