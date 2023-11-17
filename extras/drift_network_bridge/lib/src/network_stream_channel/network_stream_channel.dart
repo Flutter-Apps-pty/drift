@@ -73,7 +73,7 @@ class NetworkStreamChannel extends StreamChannelMixin<Object?> {
   late StreamSinkWrapper _sink;
   void Function(NetworkClient client)? onConnected;
   bool get isHost => !allowSinkErrors;
-
+  NetworkClient get client => _client;
   @visibleForTesting
   static bool ignoreClientMessage = false;
 
