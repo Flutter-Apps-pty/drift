@@ -189,9 +189,26 @@ class DartViewResolver extends LocalElementResolver<DiscoveredDartView> {
         ),
       );
     }
+    AnnotatedDartCode query;
+    if (resolvedFrom == null &&
+        resolver.driver.options.assumeCorrectReference) {
+      query = AnnotatedDartCode.build(
+          (builder) => builder.addText(body.expression.toSource().replaceAll(target!.toSource(), '')));
+    } else {
+      query = AnnotatedDartCode.build(
+          (builder) => builder.addAstNode(body.expression, exclude: {target!}));
+    }
 
-    final query = AnnotatedDartCode.build(
-        (builder) => builder.addAstNode(body.expression, exclude: {target!}));
+    // if(resolver.driver.options.assumeCorrectReference){
+    //   bool separate = false;
+    //   for (int i = 0; i < query.elements.length; i++) {
+    //     if (separate && query.elements[i] is String && i != query.elements.length-1) {
+    //       query.elements[i]+=',';
+    //       separate = false;
+    //     }
+    //     separate = query.elements[i] is DartTopLevelSymbol;
+    //   }
+    // }
     return _ParsedDartViewSelect(
         resolvedFrom, innerJoins, outerJoins, columnExpressions, query, from);
   }
@@ -281,7 +298,11 @@ class DartViewResolver extends LocalElementResolver<DiscoveredDartView> {
           nameInSql: ReCase(getter.name).snakeCase,
           nullable: true,
           constraints: [
-            ColumnGeneratedAs(AnnotatedDartCode.ast(expression), false)
+            resolver.driver.options.assumeCorrectReference
+                ? ColumnGeneratedAs(AnnotatedDartCode.build((builder) {
+                    builder.addText(expression.toSource());
+                  }), false)
+                : ColumnGeneratedAs(AnnotatedDartCode.ast(expression), false),
           ],
         ));
       }
@@ -312,6 +333,7 @@ class _ParsedDartViewSelect {
   final AnnotatedDartCode dartQuerySource;
 
   final String? staticSource;
+
   _ParsedDartViewSelect(this.primarySource, this.innerJoins, this.outerJoins,
       this.selectedColumns, this.dartQuerySource, [this.staticSource]);
 
