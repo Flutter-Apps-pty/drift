@@ -120,4 +120,71 @@ CREATE VIEW a AS SELECT nullif(bar, '') FROM foo;
       }, result.dartOutputs, result.writer);
     },
   );
+
+  test('generates valid code for columns containing dollar signs', () async {
+    final result = await emulateDriftBuild(
+      inputs: {
+        'a|lib/a.dart': r'''
+import 'package:drift/drift.dart';
+
+class Todo extends Table {
+  TextColumn get id => text()();
+  TextColumn get listid => text().nullable()();
+  TextColumn get text$ => text().named('text').nullable()();
+  BoolColumn get completed => boolean()();
+}
+
+@DriftDatabase(tables: [Todo])
+class MyDatabase {}
+''',
+      },
+      logger: loggerThat(neverEmits(anything)),
+    );
+
+    // Make sure we don't generate invalid code in string literals for dollar
+    // signs in names - https://github.com/simolus3/drift/issues/2761.
+    checkOutputs(
+      {'a|lib/a.drift.dart': IsValidDartFile(anything)},
+      result.dartOutputs,
+      result.writer,
+    );
+  });
+
+  test('generates code for view with multiple group by', () async {
+    final result = await emulateDriftBuild(
+      inputs: {
+        'a|lib/a.dart': r'''
+import 'package:drift/drift.dart';
+
+class Todo extends Table {
+  TextColumn get id => text()();
+  TextColumn get listid => text().nullable()();
+  BoolColumn get completed => boolean()();
+}
+
+@DriftView()
+abstract class SomeView extends View {
+  Todo get todoItems;
+
+  @override
+  Query as() => select([todoItems.id]).from(todoItems)
+        ..groupBy([todoItems.id, todoItems.listId]);
+}
+
+@DriftDatabase(tables: [Todo], views: [SomeView])
+class MyDatabase {}
+''',
+      },
+      logger: loggerThat(neverEmits(anything)),
+    );
+
+    checkOutputs(
+      {
+        'a|lib/a.drift.dart': allOf(IsValidDartFile(anything),
+            decodedMatches(contains('todoItems.id, todoItems.listId')))
+      },
+      result.dartOutputs,
+      result.writer,
+    );
+  });
 }

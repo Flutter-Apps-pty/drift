@@ -4,8 +4,8 @@ import 'package:archive/archive_io.dart';
 import 'package:http/http.dart';
 import 'package:path/path.dart' as p;
 
-const _version = '3410000';
-const _year = '2023';
+const _version = '3450000';
+const _year = '2024';
 const _url = 'https://www.sqlite.org/$_year/sqlite-autoconf-$_version.tar.gz';
 
 Future<void> main(List<String> args) async {
@@ -39,7 +39,7 @@ Future<void> main(List<String> args) async {
   // Much easier to just download precompiled builds.
   if (Platform.isWindows) {
     const windowsUri =
-        'https://www.sqlite.org/$_year/sqlite-dll-win64-x64-$_version.zip';
+        'https://www.sqlite.org/$_year/sqlite-dll-win-x64-$_version.zip';
     final sqlite3Zip = p.join(temporaryDirPath, 'sqlite3.zip');
     final client = Client();
     final response = await client.send(Request('GET', Uri.parse(windowsUri)));

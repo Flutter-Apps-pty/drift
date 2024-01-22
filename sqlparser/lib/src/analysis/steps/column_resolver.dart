@@ -42,14 +42,16 @@ class ColumnResolver extends RecursiveVisitor<ColumnResolverContext, void> {
 
     final scope = e.statementScope;
 
-    // Add columns of the target table for when and update of clauses
-    scope.expansionOfStarColumn = table.resolvedColumns;
-
     if (e.target.introducesNew) {
-      scope.addAlias(e, table, 'new');
+      scope.addAlias(e, table, 'new', canUseUnqualifiedColumns: false);
     }
     if (e.target.introducesOld) {
-      scope.addAlias(e, table, 'old');
+      scope.addAlias(e, table, 'old', canUseUnqualifiedColumns: false);
+    }
+
+    if (e.target case final UpdateTarget onUpdate) {
+      onUpdate.scope = SingleTableReferenceScope(scope, e.onTable.tableName,
+          ResultSetAvailableInStatement(e.onTable, table));
     }
 
     visitChildren(e, arg);
@@ -156,7 +158,15 @@ class ColumnResolver extends RecursiveVisitor<ColumnResolverContext, void> {
 
   @override
   void visitForeignKeyClause(ForeignKeyClause e, ColumnResolverContext arg) {
-    _resolveTableReference(e.foreignTable, arg);
+    final resolved = _resolveTableReference(e.foreignTable, arg);
+    final scope = SingleTableReferenceScope(
+      e.scope,
+      e.foreignTable.tableName,
+      resolved != null
+          ? ResultSetAvailableInStatement(e.foreignTable, resolved)
+          : null,
+    );
+    e.scope = scope;
     visitExcept(e, e.foreignTable, arg);
   }
 
@@ -366,7 +376,7 @@ class ColumnResolver extends RecursiveVisitor<ColumnResolverContext, void> {
     // result, but also expressions that appear as result columns
     for (final resultColumn in columns) {
       if (resultColumn is StarResultColumn) {
-        Iterable<Column>? visibleColumnsForStar;
+        Iterable<Column> visibleColumnsForStar;
 
         if (resultColumn.tableName != null) {
           final tableResolver =
@@ -380,9 +390,11 @@ class ColumnResolver extends RecursiveVisitor<ColumnResolverContext, void> {
             continue;
           }
 
-          visibleColumnsForStar =
-              tableResolver.resultSet.resultSet?.resolvedColumns?.map(
-                  (tableColumn) => AvailableColumn(tableColumn, tableResolver));
+          visibleColumnsForStar = tableResolver
+                  .resultSet.resultSet?.resolvedColumns
+                  ?.map((tableColumn) =>
+                      AvailableColumn(tableColumn, tableResolver)) ??
+              const [];
         } else {
           // we have a * column without a table, that resolves to every column
           // available
@@ -401,7 +413,7 @@ class ColumnResolver extends RecursiveVisitor<ColumnResolverContext, void> {
         }
 
         final added =
-            visibleColumnsForStar!.where((e) => e.includedInResults).toList();
+            visibleColumnsForStar.where((e) => e.includedInResults).toList();
 
         usedColumns.addAll(added);
         resultColumn.resolvedColumns = added;

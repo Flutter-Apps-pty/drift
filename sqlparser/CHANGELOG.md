@@ -1,4 +1,12 @@
-## 0.33.0-dev
+## 0.34.0
+
+- Fix explicit `NULL` column constraints being dropped when converting nodes
+  to SQL.
+- Add analysis errors for illegal unqualified references to `old` and `new` in
+  triggers.
+- Analysis support for sqlite 3.45 and jsonb functions.
+
+## 0.33.0
 
 - Support the [column-name-list](https://sqlite.org/syntax/column-name-list.html)
   syntax for updates, thanks to [@tibotix](https://github.com/tibotix).

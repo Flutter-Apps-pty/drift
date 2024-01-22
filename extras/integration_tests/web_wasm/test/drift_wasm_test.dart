@@ -85,10 +85,27 @@ void main() {
         expect(result.storages, expectedImplementations);
       });
 
+      test('via regular open', () async {
+        await driver.openDatabase();
+        expect(await driver.amountOfRows, 0);
+
+        await driver.insertIntoDatabase();
+        await driver.waitForTableUpdate();
+        expect(await driver.amountOfRows, 1);
+      });
+
+      test('regular open with initializaton', () async {
+        await driver.enableInitialization(InitializationMode.loadAsset);
+        await driver.openDatabase();
+
+        expect(await driver.amountOfRows, 1);
+      });
+
       for (final entry in browser.availableImplementations) {
         group(entry.name, () {
           test('basic', () async {
             await driver.openDatabase(entry);
+            expect(await driver.amountOfRows, 0);
 
             await driver.insertIntoDatabase();
             await driver.waitForTableUpdate();
@@ -127,7 +144,7 @@ void main() {
               await driver.insertIntoDatabase();
               await driver.waitForTableUpdate();
 
-              await driver.driver.refresh(); // Reset JS state
+              await driver.closeDatabase();
 
               final newImpls = await driver.probeImplementations();
               expect(newImpls.existing, hasLength(1));

@@ -1,7 +1,29 @@
-## 2.14.0-dev
+## 2.15.0
 
-- Add the `QueryInterceptor` to easily monitor all database calls made by drift.
+- Methods in the query builder API now respect custom types.
+- Support `DialectAwareSqlType`, custom types that depend on the dialect of the
+  active database connection. This can be used to use native types not
+  supported by drift (like UUIDs) on databases that support it while falling
+  back to a text type on sqlite3.
+- Close wasm databases hosted in workers after the last client disconnects.
+- Add `enableMigrations` parameter to `NativeDatabase` which can be used to
+  optionally disable database migrations when opening databases.
+- Support `jsonb` functions in the Dart query builder.
+
+## 2.14.1
+
+- Fix `WasmProbeResult.open` ignoring the `ìnitializeDatabase` callback.
+
+## 2.14.0
+
+- Add the `QueryInterceptor` API to easily monitor or transform all database
+  calls made by drift.
 - Add the `count()` extension on tables to easily count rows in tables or views.
+
+## 2.13.2
+
+- Fix a race condition causing query streams to not emit new data around some
+  transaction setups.
 
 ## 2.13.1
 
